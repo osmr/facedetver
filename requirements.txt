@@ -4,3 +4,4 @@ torchvision
 opencv-python
 pandas
 imgaug
+scikit-image
