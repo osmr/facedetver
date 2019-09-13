@@ -38,7 +38,7 @@ def get_train_data_source(ds_metainfo,
             pin_memory=True)
     else:
         sampler = WeightedRandomSampler(
-            weights=dataset._data.sample_weights,
+            weights=dataset.sample_weights,
             num_samples=len(dataset))
         return DataLoader(
             dataset=dataset,

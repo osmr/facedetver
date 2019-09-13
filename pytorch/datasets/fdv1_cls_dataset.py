@@ -4,10 +4,11 @@
 
 import os
 import math
-from torch import functional as F
+import numpy as np
 from PIL import Image
 from torchvision.datasets import ImageFolder
 import torchvision.transforms as transforms
+import torchvision.transforms.functional as F
 from .dataset_metainfo import DatasetMetaInfo
 
 
@@ -31,6 +32,16 @@ class FDV1(ImageFolder):
         assert (mode in ("train", "val", "test"))
         root = os.path.join(root, mode)
         super(FDV1, self).__init__(root=root, transform=transform)
+        self.sample_weights = self.calc_sample_weights()
+
+    def calc_sample_weights(self):
+        list_labels = [i[1] for i in self.imgs]
+        _, label_counts = np.unique(list_labels, return_counts=True)
+        total_label_count = label_counts.sum()
+        label_widths = float(total_label_count) / label_counts
+        sample_weights = np.array([label_widths[i] for i in list_labels], np.float32)
+        sample_weights /= sample_weights.sum()
+        return sample_weights
 
 
 class FDV1MetaInfo(DatasetMetaInfo):
@@ -103,7 +114,7 @@ class ResizeLong(object):
         # import cv2
         # img_cv = img.asnumpy().copy()
         # cv2.imshow(winname="img", mat=img_cv)
-        h, w, _ = img.shape
+        w, h = img.size
         if h != w:
             top = 0
             bottom = 0
