@@ -112,7 +112,7 @@ class ResizeLong(object):
 
     def __call__(self, img):
         # import cv2
-        # img_cv = img.asnumpy().copy()
+        # img_cv = np.array(img)
         # cv2.imshow(winname="img", mat=img_cv)
         w, h = img.size
         if h != w:
@@ -130,7 +130,7 @@ class ResizeLong(object):
                 right += h - w - left_extra
             img = F.pad(img, padding=(left, top, right, bottom), padding_mode="edge")
         img = F.resize(img, self.size, self.interpolation)
-        # img_cv2 = img.asnumpy().copy()
+        # img_cv2 = np.array(img)
         # cv2.imshow(winname="img2", mat=img_cv2)
         # cv2.waitKey()
         return img

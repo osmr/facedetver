@@ -272,10 +272,7 @@ def prepare_trainer(net,
                     lr_decay_period,
                     lr_decay_epoch,
                     lr_decay,
-                    # warmup_epochs,
-                    # batch_size,
                     num_epochs,
-                    # num_training_samples,
                     state_file_path):
 
     optimizer_name = optimizer_name.lower()
@@ -348,10 +345,8 @@ def train_epoch(epoch,
                 use_cuda,
                 L,
                 optimizer,
-                # lr_scheduler,
                 batch_size,
                 log_interval):
-
     tic = time.time()
     net.train()
     train_metric.reset()
@@ -359,6 +354,14 @@ def train_epoch(epoch,
 
     btic = time.time()
     for i, (data, target) in enumerate(train_data):
+        # print("--> {}".format(target.cpu().detach().numpy()[0]))
+        # import cv2
+        # img = data[0].permute(1,2,0).cpu().detach().numpy()[:, :, [2, 1, 0]]
+        # img -= img.min()
+        # img *= 255 / img.max()
+        # cv2.imshow(winname="img", mat=img.astype(np.uint8))
+        # cv2.waitKey()
+
         if use_cuda:
             data = data.cuda(non_blocking=True)
             target = target.cuda(non_blocking=True)
@@ -437,7 +440,6 @@ def train_net(batch_size,
             use_cuda=use_cuda,
             L=L,
             optimizer=optimizer,
-            # lr_scheduler,
             batch_size=batch_size,
             log_interval=log_interval)
 
@@ -518,10 +520,7 @@ def main():
         lr_decay_period=args.lr_decay_period,
         lr_decay_epoch=args.lr_decay_epoch,
         lr_decay=args.lr_decay,
-        # warmup_epochs=args.warmup_epochs,
-        # batch_size=batch_size,
         num_epochs=args.num_epochs,
-        # num_training_samples=num_training_samples,
         state_file_path=args.resume_state)
 
     if args.save_dir and args.save_interval:
