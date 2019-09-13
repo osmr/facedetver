@@ -65,6 +65,9 @@ class FDV1MetaInfo(DatasetMetaInfo):
         self.val_metric_capts = ["Val.Err"]
         self.val_metric_names = ["Top1Error"]
         self.val_metric_extra_kwargs = [{"name": "err"}]
+        self.test_metric_capts = ["Test.Err"]
+        self.test_metric_names = ["Top1Error"]
+        self.test_metric_extra_kwargs = [{"name": "err"}]
         self.saver_acc_ind = 0
         self.train_transform = fdv1_train_transform
         self.val_transform = fdv1_val_transform
