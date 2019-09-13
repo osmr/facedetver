@@ -4,6 +4,7 @@
 
 import os
 import math
+import numpy as np
 import mxnet as mx
 import cv2
 from mxnet.gluon import Block, HybridBlock
@@ -34,6 +35,17 @@ class FDV1(ImageFolderDataset):
         split = "train" if mode == "train" else "val"
         root = os.path.join(root, split)
         super(FDV1, self).__init__(root=root, flag=1, transform=transform)
+        self.sample_weights = self.calc_sample_weights()
+
+    def calc_sample_weights(self):
+        # num_classes = len(self.synsets)
+        list_labels = [i[1] for i in self.items]
+        _, label_counts = np.unique(list_labels, return_counts=True)
+        total_label_count = label_counts.sum()
+        label_widths = float(total_label_count) / label_counts
+        sample_weights = np.array([label_widths[i] for i in list_labels], np.float32)
+        sample_weights /= sample_weights.sum()
+        return sample_weights
 
 
 class FDV1MetaInfo(DatasetMetaInfo):
@@ -49,13 +61,14 @@ class FDV1MetaInfo(DatasetMetaInfo):
         self.input_image_size = (224, 224)
         self.resize_inv_factor = 0.875
         self.aug_type = "aug0"
-        self.train_metric_capts = ["Train.Top1"]
+        self.train_metric_capts = ["Train.Err"]
         self.train_metric_names = ["Top1Error"]
-        self.train_metric_extra_kwargs = [{"name": "err-top1"}]
-        self.val_metric_capts = ["Val.Top1"]
+        self.train_metric_extra_kwargs = [{"name": "err"}]
+        self.train_use_weighted_sampler = True
+        self.val_metric_capts = ["Val.Err"]
         self.val_metric_names = ["Top1Error"]
-        self.val_metric_extra_kwargs = [{"name": "err-top1"}]
-        self.saver_acc_ind = 1
+        self.val_metric_extra_kwargs = [{"name": "err"}]
+        self.saver_acc_ind = 0
         self.train_transform = fdv1_train_transform
         self.val_transform = fdv1_val_transform
         self.test_transform = fdv1_val_transform

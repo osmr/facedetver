@@ -20,6 +20,7 @@ class DatasetMetaInfo(object):
         self.train_metric_capts = None
         self.train_metric_names = None
         self.train_metric_extra_kwargs = None
+        self.train_use_weighted_sampler = False
         self.val_metric_capts = None
         self.val_metric_names = None
         self.val_metric_extra_kwargs = None

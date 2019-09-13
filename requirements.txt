@@ -1,9 +1,7 @@
 numpy
 mxnet
 torch
-torchvision
 opencv-python
-pandas
 imgaug
 scikit-image
 gluoncv2

@@ -390,12 +390,13 @@ def train_epoch(epoch,
     btic = time.time()
     for i, batch in enumerate(train_data):
         data_list, labels_list = batch_fn(batch, ctx)
-        import cv2
-        img = data_list[0][0].transpose((1, 2, 0)).asnumpy().copy()[:, :, [2, 1, 0]]
-        img -= img.min()
-        img *= 255 / img.max()
-        cv2.imshow(winname="img", mat=img.astype(np.uint8))
-        cv2.waitKey()
+        # print("--> {}".format(labels_list[0][0].asscalar()))
+        # import cv2
+        # img = data_list[0][0].transpose((1, 2, 0)).asnumpy().copy()[:, :, [2, 1, 0]]
+        # img -= img.min()
+        # img *= 255 / img.max()
+        # cv2.imshow(winname="img", mat=img.astype(np.uint8))
+        # cv2.waitKey()
 
         if label_smoothing:
             eta = 0.1

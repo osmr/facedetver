@@ -6,6 +6,7 @@ __all__ = ['get_dataset_metainfo', 'get_train_data_source', 'get_val_data_source
            'get_batch_fn']
 
 from .datasets.fdv1_cls_dataset import FDV1MetaInfo
+from .weighted_random_sampler import WeightedRandomSampler
 from mxnet.gluon.data import DataLoader
 from mxnet.gluon.utils import split_and_load
 
@@ -36,12 +37,24 @@ def get_train_data_source(ds_metainfo,
             transform=(transform_train if ds_metainfo.do_transform else None))
         if not ds_metainfo.do_transform:
             dataset = dataset.transform_first(fn=transform_train)
-        return DataLoader(
-            dataset=dataset,
-            batch_size=batch_size,
-            shuffle=True,
-            last_batch="discard",
-            num_workers=num_workers)
+        if not ds_metainfo.train_use_weighted_sampler:
+            return DataLoader(
+                dataset=dataset,
+                batch_size=batch_size,
+                shuffle=True,
+                last_batch="discard",
+                num_workers=num_workers)
+        else:
+            sampler = WeightedRandomSampler(
+                length=len(dataset),
+                weights=dataset._data.sample_weights)
+            return DataLoader(
+                dataset=dataset,
+                batch_size=batch_size,
+                # shuffle=True,
+                sampler=sampler,
+                last_batch="discard",
+                num_workers=num_workers)
 
 
 def get_val_data_source(ds_metainfo,
