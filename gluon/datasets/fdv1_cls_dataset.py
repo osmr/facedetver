@@ -17,8 +17,6 @@ class FDV1(ImageFolderDataset):
     """
     FDV1 (Face Detection Verifier V1) classification dataset.
 
-    Refer to MXNet documentation for the description of this dataset and how to prepare it.
-
     Parameters
     ----------
     root : str, default '~/.mxnet/datasets/fdv1'
@@ -32,13 +30,12 @@ class FDV1(ImageFolderDataset):
                  root=os.path.join("~", ".mxnet", "datasets", "fdv1"),
                  mode="train",
                  transform=None):
-        split = "train" if mode == "train" else "val"
-        root = os.path.join(root, split)
+        assert (mode in ("train", "val", "test"))
+        root = os.path.join(root, mode)
         super(FDV1, self).__init__(root=root, flag=1, transform=transform)
         self.sample_weights = self.calc_sample_weights()
 
     def calc_sample_weights(self):
-        # num_classes = len(self.synsets)
         list_labels = [i[1] for i in self.items]
         _, label_counts = np.unique(list_labels, return_counts=True)
         total_label_count = label_counts.sum()

@@ -1,7 +1,9 @@
 numpy
-mxnet
-torch
 opencv-python
 imgaug
 scikit-image
+mxnet
 gluoncv2
+torch
+torchvision
+pytorchcv
