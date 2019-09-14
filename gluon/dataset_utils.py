@@ -6,6 +6,7 @@ __all__ = ['get_dataset_metainfo', 'get_train_data_source', 'get_val_data_source
            'get_batch_fn']
 
 from .datasets.fdv1_cls_dataset import FDV1MetaInfo
+from .datasets.fdv2_cls_dataset import FDV2MetaInfo
 from .weighted_random_sampler import WeightedRandomSampler
 from mxnet.gluon.data import DataLoader
 from mxnet.gluon.utils import split_and_load
@@ -14,6 +15,7 @@ from mxnet.gluon.utils import split_and_load
 def get_dataset_metainfo(dataset_name):
     dataset_metainfo_map = {
         "FDV1": FDV1MetaInfo,
+        "FDV2": FDV2MetaInfo,
     }
     if dataset_name in dataset_metainfo_map.keys():
         return dataset_metainfo_map[dataset_name]()

@@ -5,6 +5,7 @@
 __all__ = ['get_dataset_metainfo', 'get_train_data_source', 'get_val_data_source', 'get_test_data_source']
 
 from .datasets.fdv1_cls_dataset import FDV1MetaInfo
+from .datasets.fdv2_cls_dataset import FDV2MetaInfo
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import WeightedRandomSampler
 
@@ -12,6 +13,7 @@ from torch.utils.data.sampler import WeightedRandomSampler
 def get_dataset_metainfo(dataset_name):
     dataset_metainfo_map = {
         "FDV1": FDV1MetaInfo,
+        "FDV2": FDV2MetaInfo,
     }
     if dataset_name in dataset_metainfo_map.keys():
         return dataset_metainfo_map[dataset_name]()

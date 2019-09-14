@@ -1,3 +1,7 @@
+"""
+    Script for dataset splitting on train/val/test subsets.
+"""
+
 import os
 import re
 import argparse
@@ -7,7 +11,12 @@ import numpy as np
 
 def parse_args():
     """
-    Create python script parameters.
+    Parse python script parameters.
+
+    Returns
+    -------
+    ArgumentParser
+        Resulted args.
     """
     parser = argparse.ArgumentParser(
         description="Split Dataset",
@@ -16,25 +25,25 @@ def parse_args():
         "--train",
         dest="train",
         help="Training subset percent",
-        default=0.85,
+        default=0.9725014,
         type=int)
     parser.add_argument(
         "--val",
         dest="val",
         help="Validation subset percent",
-        default=0.12,
+        default=0.02151201,
         type=int)
     parser.add_argument(
         "--test",
         dest="test",
         help="Test subset percent",
-        default=0.03,
+        default=0.005986559,
         type=int)
     parser.add_argument(
         "--unumber",
         dest="unumber",
         help="Unique number for output file names",
-        default=0,
+        default=1,
         type=int)
     parser.add_argument(
         "--input-dir",
@@ -82,6 +91,7 @@ def split_ds(work_dir,
     unumber : int
         Unique number for output file names.
     """
+    assert (unumber is not None)
     assert (abs(train_fract + val_fract + test_fract - 1.0) < 1e-3)
 
     input_dir_path = os.path.join(work_dir, input_dir)

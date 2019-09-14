@@ -1,8 +1,13 @@
+"""
+    Script for hard augmentation (for dataset generation / pos -> neg).
+"""
+
 import os
 import re
 import cv2
 import argparse
 import random
+import shutil
 import numpy as np
 from imgaug import augmenters as iaa
 from imgaug import parameters as iap
@@ -10,22 +15,33 @@ from imgaug import parameters as iap
 
 def parse_args():
     """
-    Create python script parameters.
+    Parse python script parameters.
+
+    Returns
+    -------
+    ArgumentParser
+        Resulted args.
     """
     parser = argparse.ArgumentParser(
         description="Generate dataset images (Hard Augmentation)",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
+        "--remove",
+        dest="remove",
+        help="Remove processed input files (0/1)",
+        default=1,
+        type=int)
+    parser.add_argument(
         "--count",
         dest="count",
         help="Maximal count of output images",
-        default=20000,
+        default=9300,
         type=int)
     parser.add_argument(
         "--unumber",
         dest="unumber",
         help="Unique number for output file names",
-        default=0,
+        default=4,
         type=int)
     parser.add_argument(
         "--input-dir",
@@ -83,16 +99,20 @@ def create_augmneter():
 
     return iaa.Sequential(
         children=[
-            iaa.Affine(
-                rotate=(-25.0, 25.0),
-                order=iap.Choice([0, 1, 3], p=[0.15, 0.80, 0.05]),
-                mode="edge"),
+            # iaa.Affine(
+            #     rotate=(-25.0, 25.0),
+            #     order=iap.Choice([0, 1, 3], p=[0.15, 0.80, 0.05]),
+            #     mode="edge"),
             iaa.OneOf(
                 children=[
-                    iaa.Rot90((1, 3), keep_size=False),
-                    iaa.Grayscale(alpha=1.0),
-                    iaa.AddToHueAndSaturation((25, 255)),
-                    iaa.Lambda(func_images=rand_crop)
+                    # iaa.Rot90((1, 3), keep_size=False),
+                    # iaa.Grayscale(alpha=1.0),
+                    # iaa.AddToHueAndSaturation((25, 255)),
+                    # iaa.Lambda(func_images=rand_crop)
+                    iaa.Affine(
+                        rotate=(85.0, 275.0),
+                        order=iap.Choice([0, 1, 3], p=[0.15, 0.80, 0.05]),
+                        mode="edge"),
                 ])
         ])
 
@@ -101,7 +121,8 @@ def augment(work_dir,
             input_dir,
             output_dir,
             max_count,
-            unumber):
+            unumber,
+            remove_input):
     """
     Do augmentation on images.
 
@@ -115,6 +136,8 @@ def augment(work_dir,
         Output images directory name.
     unumber : int
         Unique number for output file names.
+    remove_input : bool
+        Whether to remove processed input files.
     """
     input_dir_path = os.path.join(work_dir, input_dir)
     if not os.path.exists(input_dir_path):
@@ -123,6 +146,10 @@ def augment(work_dir,
     output_dir_path = os.path.join(work_dir, output_dir)
     if not os.path.exists(output_dir_path):
         os.makedirs(output_dir_path)
+    if remove_input:
+        remove_output_dir_path = os.path.join(output_dir_path, "removed")
+        if not os.path.exists(remove_output_dir_path):
+            os.makedirs(remove_output_dir_path)
 
     image_file_names = os.listdir(input_dir_path)
     image_file_names = [n for n in image_file_names if os.path.isfile(os.path.join(input_dir_path, n))]
@@ -146,6 +173,11 @@ def augment(work_dir,
         output_image_file_path = os.path.join(output_dir_path, "{}-au{}.jpg".format(image_file_path_template, unumber))
         cv2.imwrite(output_image_file_path, img_aug)
 
+        if remove_input:
+            shutil.move(
+                input_image_file_path,
+                os.path.join(remove_output_dir_path, image_file_name))
+
 
 if __name__ == "__main__":
     args = parse_args()
@@ -155,4 +187,5 @@ if __name__ == "__main__":
         input_dir=args.input_dir,
         output_dir=args.output_dir,
         max_count=args.count,
-        unumber=args.unumber)
+        unumber=args.unumber,
+        remove_input=(args.remove == 1))

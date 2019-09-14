@@ -4,23 +4,28 @@ import logging
 import os
 import random
 import numpy as np
-
 import mxnet as mx
 from mxnet import gluon
 from mxnet import autograd as ag
-
 from common.logger_utils import initialize_logging
 from common.train_log_param_saver import TrainLogParamSaver
 from gluon.lr_scheduler import LRScheduler
 from gluon.utils import prepare_mx_context, prepare_model, validate
 from gluon.utils import report_accuracy, get_composite_metric, get_metric_name, get_initializer
-
 from gluon.dataset_utils import get_dataset_metainfo
 from gluon.dataset_utils import get_train_data_source, get_val_data_source
 from gluon.dataset_utils import get_batch_fn
 
 
 def add_train_cls_parser_arguments(parser):
+    """
+    Create python script parameters (for training/classification specific subpart).
+
+    Parameters:
+    ----------
+    parser : ArgumentParser
+        ArgumentParser instance.
+    """
     parser.add_argument(
         "--model",
         type=str,
@@ -228,7 +233,7 @@ def add_train_cls_parser_arguments(parser):
     parser.add_argument(
         "--log-pip-packages",
         type=str,
-        default="mxnet-cu100",
+        default="mxnet-cu100, gluioncv2",
         help="list of pip packages for logging")
 
     parser.add_argument(
@@ -239,14 +244,22 @@ def add_train_cls_parser_arguments(parser):
 
 
 def parse_args():
+    """
+    Parse python script parameters (common part).
+
+    Returns
+    -------
+    ArgumentParser
+        Resulted args.
+    """
     parser = argparse.ArgumentParser(
-        description="Train a model for image classification (Gluon/FDV1)",
+        description="Train a model for image classification (Gluon/FDV)",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         "--dataset",
         type=str,
         default="FDV1",
-        help="dataset name. option is FDV1 only")
+        help="dataset name. option are FDV1, FDV2")
     parser.add_argument(
         "--work-dir",
         type=str,
@@ -567,6 +580,9 @@ def train_net(batch_size,
 
 
 def main():
+    """
+    Main body of script.
+    """
     args = parse_args()
     args.seed = init_rand(seed=args.seed)
 

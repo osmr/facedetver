@@ -1,3 +1,7 @@
+"""
+    Script for removing duplicates (for dataset generation).
+"""
+
 import os
 import re
 import cv2
@@ -8,7 +12,12 @@ from skimage.measure import compare_ssim as ssim
 
 def parse_args():
     """
-    Create python script parameters.
+    Parse python script parameters.
+
+    Returns
+    -------
+    ArgumentParser
+        Resulted args.
     """
     parser = argparse.ArgumentParser(
         description="Generate dataset images (Removing Duplicates)",

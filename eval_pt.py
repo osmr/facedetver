@@ -13,6 +13,14 @@ from pytorch.model_stats import measure_model
 
 
 def add_eval_cls_parser_arguments(parser):
+    """
+    Create python script parameters (for eval specific subpart).
+
+    Parameters:
+    ----------
+    parser : ArgumentParser
+        ArgumentParser instance.
+    """
     parser.add_argument(
         "--model",
         type=str,
@@ -85,13 +93,9 @@ def add_eval_cls_parser_arguments(parser):
     parser.add_argument(
         "--log-pip-packages",
         type=str,
-        default="",
+        default="pytorchcv",
         help="list of pip packages for logging")
 
-    parser.add_argument(
-        "--disable-cudnn-autotune",
-        action="store_true",
-        help="disable cudnn autotune for segmentation models")
     parser.add_argument(
         "--show-progress",
         action="store_true",
@@ -99,14 +103,22 @@ def add_eval_cls_parser_arguments(parser):
 
 
 def parse_args():
+    """
+    Parse python script parameters (common part).
+
+    Returns
+    -------
+    ArgumentParser
+        Resulted args.
+    """
     parser = argparse.ArgumentParser(
-        description="Evaluate a model for image classification/segmentation (PyTorch)",
+        description="Evaluate a model for image classification (PyTorch/FDV)",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         "--dataset",
         type=str,
         default="FDV1",
-        help="dataset name. option is FDV1 only")
+        help="dataset name. option are FDV1, FDV2")
     parser.add_argument(
         "--work-dir",
         type=str,
@@ -135,6 +147,32 @@ def test(net,
          calc_flops=False,
          calc_flops_only=True,
          extended_log=False):
+    """
+    Main test routine.
+
+    Parameters:
+    ----------
+    net : Module
+        Model.
+    test_data : DataLoader
+        Data loader.
+    metric : EvalMetric
+        Metric object instance.
+    use_cuda : bool
+        Whether to use CUDA.
+    input_image_size : tuple of 2 ints
+        Spatial size of the expected input image.
+    in_channels : int
+        Number of input channels.
+    calc_weight_count : bool, default False
+        Whether to calculate count of weights.
+    calc_flops : bool, default False
+        Whether to calculate FLOPs.
+    calc_flops_only : bool, default True
+        Whether to only calculate FLOPs without testing.
+    extended_log : bool, default False
+        Whether to log more precise accuracy values.
+    """
     if not calc_flops_only:
         tic = time.time()
         validate(
@@ -166,10 +204,10 @@ def test(net,
 
 
 def main():
+    """
+    Main body of script.
+    """
     args = parse_args()
-
-    if args.disable_cudnn_autotune:
-        os.environ["MXNET_CUDNN_AUTOTUNE_DEFAULT"] = "0"
 
     _, log_file_exist = initialize_logging(
         logging_dir_path=args.save_dir,
@@ -180,8 +218,6 @@ def main():
 
     ds_metainfo = get_dataset_metainfo(dataset_name=args.dataset)
     ds_metainfo.update(args=args)
-    assert (ds_metainfo.ml_type != "imgseg") or (args.batch_size == 1)
-    assert (ds_metainfo.ml_type != "imgseg") or args.disable_cudnn_autotune
 
     use_cuda, batch_size = prepare_pt_context(
         num_gpus=args.num_gpus,
@@ -227,7 +263,6 @@ def main():
         use_cuda=use_cuda,
         input_image_size=(input_image_size, input_image_size),
         in_channels=args.in_channels,
-        # calc_weight_count=(not log_file_exist),
         calc_weight_count=True,
         calc_flops=args.calc_flops,
         calc_flops_only=args.calc_flops_only,

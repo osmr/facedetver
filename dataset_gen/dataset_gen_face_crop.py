@@ -1,3 +1,7 @@
+"""
+    Script for face cropping (for dataset generation).
+"""
+
 import os
 import re
 import cv2
@@ -6,7 +10,12 @@ import argparse
 
 def parse_args():
     """
-    Create python script parameters.
+    Parse python script parameters.
+
+    Returns
+    -------
+    ArgumentParser
+        Resulted args.
     """
     parser = argparse.ArgumentParser(
         description="Generate dataset images (Face cropping)",

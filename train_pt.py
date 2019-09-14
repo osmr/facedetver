@@ -4,11 +4,9 @@ import logging
 import argparse
 import random
 import numpy as np
-
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torch.utils.data
-
 from common.logger_utils import initialize_logging
 from common.train_log_param_saver import TrainLogParamSaver
 from pytorch.utils import prepare_pt_context, prepare_model, validate
@@ -19,6 +17,14 @@ from pytorch.dataset_utils import get_train_data_source, get_val_data_source
 
 
 def add_train_cls_parser_arguments(parser):
+    """
+    Create python script parameters (for training/classification specific subpart).
+
+    Parameters:
+    ----------
+    parser : ArgumentParser
+        ArgumentParser instance.
+    """
     parser.add_argument(
         "--model",
         type=str,
@@ -212,7 +218,7 @@ def add_train_cls_parser_arguments(parser):
     parser.add_argument(
         "--log-pip-packages",
         type=str,
-        default="",
+        default="pytorchcv",
         help="list of pip packages for logging")
 
     parser.add_argument(
@@ -223,14 +229,22 @@ def add_train_cls_parser_arguments(parser):
 
 
 def parse_args():
+    """
+    Parse python script parameters (common part).
+
+    Returns
+    -------
+    ArgumentParser
+        Resulted args.
+    """
     parser = argparse.ArgumentParser(
-        description="Train a model for image classification (PyTorch)",
+        description="Train a model for image classification (PyTorch/FDV)",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         "--dataset",
         type=str,
         default="FDV1",
-        help="dataset name. option is FDV1 only")
+        help="dataset name. option are FDV1, FDV2")
     parser.add_argument(
         "--work-dir",
         type=str,
@@ -475,6 +489,9 @@ def train_net(batch_size,
 
 
 def main():
+    """
+    Main body of script.
+    """
     args = parse_args()
     args.seed = init_rand(seed=args.seed)
 
