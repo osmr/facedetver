@@ -388,7 +388,7 @@ def prepare_trainer(net,
         lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer=optimizer,
             T_max=num_epochs,
-            last_epoch=(num_epochs - 1))
+            last_epoch=-1)
     else:
         raise ValueError("Usupported lr_scheduler: {}".format(lr_mode))
 
@@ -571,6 +571,7 @@ def train_net(batch_size,
         logging.info("[Epoch {}] validation: {}".format(start_epoch1 - 1, val_accuracy_msg))
 
     gtic = time.time()
+    optimizer.step()
     for epoch in range(start_epoch1 - 1, num_epochs):
         lr_scheduler.step()
 
