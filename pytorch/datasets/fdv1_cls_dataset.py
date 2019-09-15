@@ -77,6 +77,7 @@ class FDV1MetaInfo(DatasetMetaInfo):
         self.val_transform = fdv1_val_transform
         self.test_transform = fdv1_val_transform
         self.ml_type = "imgcls"
+        self.do_downscale = False
 
     def add_dataset_parser_arguments(self,
                                      parser,
@@ -92,16 +93,22 @@ class FDV1MetaInfo(DatasetMetaInfo):
             type=float,
             default=self.resize_inv_factor,
             help="inverted ratio for input image crop")
+        parser.add_argument(
+            "--do-downscale",
+            action="store_true",
+            help="do force downscale big images")
 
     def update(self,
                args):
         super(FDV1MetaInfo, self).update(args)
         self.input_image_size = (args.input_size, args.input_size)
+        self.resize_inv_factor = args.resize_inv_factor
+        self.do_downscale = args.do_downscale
 
 
-class ResizeLong(object):
+class Squaring(object):
     """
-    Specific resize the input PIL Image to the given size.
+    Squaring image.
 
     Parameters
     ----------
@@ -145,6 +152,37 @@ class ResizeLong(object):
         return self.__class__.__name__ + '(size={0}, interpolation={1})'.format(self.size, self.interpolation)
 
 
+class DownscaleOnDemand(object):
+    """
+    Specific image downscale on demand.
+
+    Parameters
+    ----------
+    size : int
+        Size of output image.
+    threshold_size : int
+        Threshold for size of input image.
+    interpolation : int, default 2
+        Interpolation method for resizing.
+    """
+    def __init__(self,
+                 size,
+                 threshold_size,
+                 interpolation=Image.BILINEAR):
+        self.size = size
+        self.threshold_size = threshold_size
+        self.interpolation = interpolation
+
+    def __call__(self, img):
+        w, h = img.size
+        if min(h, w) > self.threshold_size:
+            img = F.resize(img, self.size, self.interpolation)
+        return img
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(size={0}, interpolation={1})'.format(self.size, self.interpolation)
+
+
 def fdv1_train_transform(ds_metainfo,
                          mean_rgb=(0.485, 0.456, 0.406),
                          std_rgb=(0.229, 0.224, 0.225),
@@ -154,7 +192,7 @@ def fdv1_train_transform(ds_metainfo,
         input_image_size=ds_metainfo.input_image_size,
         resize_inv_factor=ds_metainfo.resize_inv_factor)
     return transforms.Compose([
-        ResizeLong(size=resize_value),
+        Squaring(size=resize_value),
         transforms.RandomResizedCrop(
             size=input_image_size,
             scale=(0.75, 1.0),
@@ -178,14 +216,19 @@ def fdv1_val_transform(ds_metainfo,
     resize_value = calc_val_resize_value(
         input_image_size=ds_metainfo.input_image_size,
         resize_inv_factor=ds_metainfo.resize_inv_factor)
-    return transforms.Compose([
-        ResizeLong(size=resize_value),
+    if ds_metainfo.do_downscale:
+        transform_list = [DownscaleOnDemand(size=150, threshold_size=256)]
+    else:
+        transform_list = []
+    transform_list += [
+        Squaring(size=resize_value),
         transforms.CenterCrop(size=input_image_size),
         transforms.ToTensor(),
         transforms.Normalize(
             mean=mean_rgb,
             std=std_rgb)
-    ])
+    ]
+    return transforms.Compose(transform_list)
 
 
 def calc_val_resize_value(input_image_size=(224, 224),

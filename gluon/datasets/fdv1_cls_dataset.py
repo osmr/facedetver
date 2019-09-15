@@ -79,6 +79,7 @@ class FDV1MetaInfo(DatasetMetaInfo):
         self.val_transform = fdv1_val_transform
         self.test_transform = fdv1_val_transform
         self.ml_type = "imgcls"
+        self.do_downscale = False
 
     def add_dataset_parser_arguments(self,
                                      parser,
@@ -99,6 +100,10 @@ class FDV1MetaInfo(DatasetMetaInfo):
             type=str,
             default="aug0",
             help="augmentation type. options are aug0, aug1")
+        parser.add_argument(
+            "--do-downscale",
+            action="store_true",
+            help="do force downscale big images")
 
     def update(self,
                args):
@@ -106,6 +111,7 @@ class FDV1MetaInfo(DatasetMetaInfo):
         self.input_image_size = (args.input_size, args.input_size)
         self.resize_inv_factor = args.resize_inv_factor
         self.aug_type = args.aug_type
+        self.do_downscale = args.do_downscale
 
 
 class ImgAugTransform(Block):
@@ -174,9 +180,9 @@ class ImgAugTransform(Block):
         return x
 
 
-class ResizeLong(HybridBlock):
+class Squaring(Block):
     """
-    Specific resize an image or a batch of image NDArray to the given size.
+    Squaring image.
 
     Parameters
     ----------
@@ -193,11 +199,11 @@ class ResizeLong(HybridBlock):
     def __init__(self,
                  size,
                  interpolation=1):
-        super(ResizeLong, self).__init__()
+        super(Squaring, self).__init__()
         self._size = size
         self._interpolation = interpolation
 
-    def hybrid_forward(self, F, x):
+    def forward(self, x):
         # img = x.asnumpy().copy()
         # cv2.imshow(winname="img", mat=img)
         h, w, _ = x.shape
@@ -222,6 +228,39 @@ class ResizeLong(HybridBlock):
         return x
 
 
+class DownscaleOnDemand(Block):
+    """
+    Specific image downscale on demand.
+
+    Parameters
+    ----------
+    size : int
+        Size of output image.
+    threshold_size : int
+        Threshold for size of input image.
+    interpolation : int, default 1
+        Interpolation method for resizing. By default uses bilinear
+        interpolation. See OpenCV's resize function for available choices.
+        Note that the Resize on gpu use contrib.bilinearResize2D operator
+        which only support bilinear interpolation(1). The result would be slightly
+        different on gpu compared to cpu. OpenCV tend to align center while bilinearResize2D
+        use algorithm which aligns corner.
+    """
+    def __init__(self,
+                 size,
+                 threshold_size,
+                 interpolation=1):
+        super(DownscaleOnDemand, self).__init__()
+        self._threshold_size = threshold_size
+        self._resize = transforms.Resize(size=size, keep_ratio=True, interpolation=interpolation)
+
+    def forward(self, x):
+        h, w, _ = x.shape
+        if min(h, w) > self._threshold_size:
+            x = self._resize(x)
+        return x
+
+
 def fdv1_train_transform(ds_metainfo,
                          mean_rgb=(0.485, 0.456, 0.406),
                          std_rgb=(0.229, 0.224, 0.225),
@@ -242,7 +281,7 @@ def fdv1_train_transform(ds_metainfo,
         input_image_size=ds_metainfo.input_image_size,
         resize_inv_factor=ds_metainfo.resize_inv_factor)
     transform_list += [
-        ResizeLong(
+        Squaring(
             size=resize_value,
             interpolation=interpolation),
         transforms.RandomResizedCrop(
@@ -272,14 +311,19 @@ def fdv1_val_transform(ds_metainfo,
     resize_value = calc_val_resize_value(
         input_image_size=ds_metainfo.input_image_size,
         resize_inv_factor=ds_metainfo.resize_inv_factor)
-    return transforms.Compose([
-        ResizeLong(size=resize_value),
+    if ds_metainfo.do_downscale:
+        transform_list = [DownscaleOnDemand(size=150, threshold_size=256)]
+    else:
+        transform_list = []
+    transform_list += [
+        Squaring(size=resize_value),
         transforms.CenterCrop(size=input_image_size),
         transforms.ToTensor(),
         transforms.Normalize(
             mean=mean_rgb,
             std=std_rgb)
-    ])
+    ]
+    return transforms.Compose(transform_list)
 
 
 def calc_val_resize_value(input_image_size=(224, 224),
