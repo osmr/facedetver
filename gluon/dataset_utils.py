@@ -13,6 +13,19 @@ from mxnet.gluon.utils import split_and_load
 
 
 def get_dataset_metainfo(dataset_name):
+    """
+    Get dataset metainfo by name of dataset.
+
+    Parameters
+    ----------
+    dataset_name : str
+        Dataset name.
+
+    Returns
+    -------
+    DatasetMetaInfo
+        Dataset metainfo.
+    """
     dataset_metainfo_map = {
         "FDV1": FDV1MetaInfo,
         "FDV2": FDV2MetaInfo,
@@ -26,6 +39,23 @@ def get_dataset_metainfo(dataset_name):
 def get_train_data_source(ds_metainfo,
                           batch_size,
                           num_workers):
+    """
+    Get data source for training subset.
+
+    Parameters
+    ----------
+    ds_metainfo : DatasetMetaInfo
+        Dataset metainfo.
+    batch_size : int
+        Batch size.
+    num_workers : int
+        Number of background workers.
+
+    Returns
+    -------
+    DataLoader or ImageRecordIter
+        Data source.
+    """
     if ds_metainfo.use_imgrec:
         return ds_metainfo.train_imgrec_iter(
             ds_metainfo=ds_metainfo,
@@ -62,6 +92,23 @@ def get_train_data_source(ds_metainfo,
 def get_val_data_source(ds_metainfo,
                         batch_size,
                         num_workers):
+    """
+    Get data source for validation subset.
+
+    Parameters
+    ----------
+    ds_metainfo : DatasetMetaInfo
+        Dataset metainfo.
+    batch_size : int
+        Batch size.
+    num_workers : int
+        Number of background workers.
+
+    Returns
+    -------
+    DataLoader or ImageRecordIter
+        Data source.
+    """
     if ds_metainfo.use_imgrec:
         return ds_metainfo.val_imgrec_iter(
             ds_metainfo=ds_metainfo,
@@ -85,6 +132,23 @@ def get_val_data_source(ds_metainfo,
 def get_test_data_source(ds_metainfo,
                          batch_size,
                          num_workers):
+    """
+    Get data source for testing subset.
+
+    Parameters
+    ----------
+    ds_metainfo : DatasetMetaInfo
+        Dataset metainfo.
+    batch_size : int
+        Batch size.
+    num_workers : int
+        Number of background workers.
+
+    Returns
+    -------
+    DataLoader or ImageRecordIter
+        Data source.
+    """
     if ds_metainfo.use_imgrec:
         return ds_metainfo.val_imgrec_iter(
             ds_metainfo=ds_metainfo,
@@ -106,6 +170,19 @@ def get_test_data_source(ds_metainfo,
 
 
 def get_batch_fn(use_imgrec):
+    """
+    Get function for splitting data after extraction from data loader.
+
+    Parameters
+    ----------
+    use_imgrec : bool
+        Whether to use ImageRecordIter.
+
+    Returns
+    -------
+    func
+        Desired function.
+    """
     if use_imgrec:
         def batch_fn(batch, ctx):
             data = split_and_load(batch.data[0], ctx_list=ctx, batch_axis=0)

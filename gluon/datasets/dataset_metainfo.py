@@ -6,6 +6,9 @@ import os
 
 
 class DatasetMetaInfo(object):
+    """
+    Base descriptor of dataset.
+    """
     def __init__(self):
         self.use_imgrec = False
         self.do_transform = False
@@ -36,6 +39,16 @@ class DatasetMetaInfo(object):
     def add_dataset_parser_arguments(self,
                                      parser,
                                      work_dir_path):
+        """
+        Create python script parameters (for dataset specific metainfo).
+
+        Parameters:
+        ----------
+        parser : ArgumentParser
+            ArgumentParser instance.
+        work_dir_path : str
+            Path to working directory.
+        """
         parser.add_argument(
             "--data-dir",
             type=str,
@@ -54,6 +67,14 @@ class DatasetMetaInfo(object):
 
     def update(self,
                args):
+        """
+        Update dataset metainfo after user customizing.
+
+        Parameters:
+        ----------
+        args : ArgumentParser
+            Main script arguments.
+        """
         self.root_dir_path = args.data_dir
         self.num_classes = args.num_classes
         self.in_channels = args.in_channels

@@ -1,3 +1,7 @@
+"""
+    Main routines shared between training and evaluation scripts.
+"""
+
 import logging
 import os
 import numpy as np
@@ -9,6 +13,23 @@ from .metrics.cls_metrics import Top1Error, F1, MCC
 
 def prepare_pt_context(num_gpus,
                        batch_size):
+    """
+    Correct batch size.
+
+    Parameters
+    ----------
+    num_gpus : int
+        Number of GPU.
+    batch_size : int
+        Batch size for each GPU.
+
+    Returns
+    -------
+    bool
+        Whether to use CUDA.
+    int
+        Batch size for all GPUs.
+    """
     use_cuda = (num_gpus > 0)
     batch_size *= max(1, num_gpus)
     return use_cuda, batch_size
@@ -25,6 +46,39 @@ def prepare_model(model_name,
                   in_channels=None,
                   remap_to_cpu=False,
                   remove_module=False):
+    """
+    Create and initialize model by name.
+
+    Parameters
+    ----------
+    model_name : str
+        Model name.
+    use_pretrained : bool
+        Whether to use pretrained weights.
+    pretrained_model_file_path : str
+        Path to file with pretrained weights.
+    use_cuda : bool
+        Whether to use CUDA.
+    use_data_parallel : bool, default True
+        Whether to use parallelization.
+    net_extra_kwargs : dict, default None
+        Extra parameters for model.
+    load_ignore_extra : bool, default False
+        Whether to ignore extra layers in pretrained model.
+    num_classes : int, default None
+        Number of classes.
+    in_channels : int, default None
+        Number of input channels.
+    remap_to_cpu : bool, default False
+        Whether to remape model to CPU during loading.
+    remove_module : bool, default False
+        Whether to remove module from loaded model.
+
+    Returns
+    -------
+    Module
+        Model.
+    """
     kwargs = {"pretrained": use_pretrained}
     if num_classes is not None:
         kwargs["num_classes"] = num_classes
@@ -67,6 +121,19 @@ def prepare_model(model_name,
 
 
 def calc_net_weight_count(net):
+    """
+    Calculate number of model trainable parameters.
+
+    Parameters
+    ----------
+    net : Module
+        Model.
+
+    Returns
+    -------
+    int
+        Number of parameters.
+    """
     net.train()
     net_params = filter(lambda p: p.requires_grad, net.parameters())
     weight_count = 0
@@ -79,6 +146,25 @@ def validate(metric,
              net,
              val_data,
              use_cuda):
+    """
+    Core validation/testing routine.
+
+    Parameters:
+    ----------
+    metric : EvalMetric
+        Metric object instance.
+    net : Module
+        Model.
+    val_data : DataLoader
+        Data loader.
+    use_cuda : bool
+        Whether to use CUDA.
+
+    Returns
+    -------
+    EvalMetric
+        Metric object instance.
+    """
     net.eval()
     metric.reset()
     with torch.no_grad():
@@ -92,6 +178,21 @@ def validate(metric,
 
 def report_accuracy(metric,
                     extended_log=False):
+    """
+    Make report string for composite metric.
+
+    Parameters:
+    ----------
+    metric : EvalMetric
+        Metric object instance.
+    extended_log : bool, default False
+        Whether to log more precise accuracy values.
+
+    Returns
+    -------
+    str
+        Report string.
+    """
     metric_info = metric.get()
     if extended_log:
         msg_pattern = "{name}={value:.4f} ({value})"
@@ -110,7 +211,23 @@ def report_accuracy(metric,
     return msg
 
 
-def get_metric(metric_name, metric_extra_kwargs):
+def get_metric(metric_name,
+               metric_extra_kwargs):
+    """
+    Get metric by name.
+
+    Parameters:
+    ----------
+    metric_name : str
+        Metric name.
+    metric_extra_kwargs : dict
+        Metric extra parameters.
+
+    EvalMetric
+    -------
+    EvalMetric
+        Metric object instance.
+    """
     if metric_name == "Top1Error":
         return Top1Error(**metric_extra_kwargs)
     elif metric_name == "F1":
@@ -121,7 +238,23 @@ def get_metric(metric_name, metric_extra_kwargs):
         raise Exception("Wrong metric name: {}".format(metric_name))
 
 
-def get_composite_metric(metric_names, metric_extra_kwargs):
+def get_composite_metric(metric_names,
+                         metric_extra_kwargs):
+    """
+    Get composite metric by list of metric names.
+
+    Parameters:
+    ----------
+    metric_names : list of str
+        Metric name list.
+    metric_extra_kwargs : list of dict
+        Metric extra parameters list.
+
+    Returns
+    -------
+    CompositeEvalMetric
+        Metric object instance.
+    """
     if len(metric_names) == 1:
         metric = get_metric(metric_names[0], metric_extra_kwargs[0])
     else:
@@ -131,7 +264,23 @@ def get_composite_metric(metric_names, metric_extra_kwargs):
     return metric
 
 
-def get_metric_name(metric, index):
+def get_metric_name(metric,
+                    index):
+    """
+    Get metric name by index in the composite metric.
+
+    Parameters:
+    ----------
+    metric : CompositeEvalMetric or EvalMetric
+        Metric object instance.
+    index : int
+        Index.
+
+    Returns
+    -------
+    str
+        Metric name.
+    """
     if isinstance(metric, CompositeEvalMetric):
         return metric.metrics[index].name
     elif isinstance(metric, EvalMetric):

@@ -35,6 +35,14 @@ class FDV1(ImageFolder):
         self.sample_weights = self.calc_sample_weights()
 
     def calc_sample_weights(self):
+        """
+        Calculate sample weights vector for weighted sampler.
+
+        Returns
+        -------
+        np.array
+            Sample weights vector.
+        """
         list_labels = [i[1] for i in self.imgs]
         _, label_counts = np.unique(list_labels, return_counts=True)
         total_label_count = label_counts.sum()
@@ -44,10 +52,26 @@ class FDV1(ImageFolder):
         return sample_weights
 
     def get_file_name(self, idx):
+        """
+        Get file path for particular sample.
+
+        Parameters
+        ----------
+        idx : int
+            Number of sample.
+
+        Returns
+        -------
+        str
+            File path.
+        """
         return self.imgs[idx][0]
 
 
 class FDV1MetaInfo(DatasetMetaInfo):
+    """
+    Descriptor of FDV1 dataset.
+    """
     def __init__(self):
         super(FDV1MetaInfo, self).__init__()
         self.label = "FDV1"
@@ -82,6 +106,16 @@ class FDV1MetaInfo(DatasetMetaInfo):
     def add_dataset_parser_arguments(self,
                                      parser,
                                      work_dir_path):
+        """
+        Create python script parameters (for FDV1 dataset metainfo).
+
+        Parameters:
+        ----------
+        parser : ArgumentParser
+            ArgumentParser instance.
+        work_dir_path : str
+            Path to working directory.
+        """
         super(FDV1MetaInfo, self).add_dataset_parser_arguments(parser, work_dir_path)
         parser.add_argument(
             "--input-size",
@@ -100,6 +134,14 @@ class FDV1MetaInfo(DatasetMetaInfo):
 
     def update(self,
                args):
+        """
+        Update FDV1 dataset metainfo after user customizing.
+
+        Parameters:
+        ----------
+        args : ArgumentParser
+            Main script arguments.
+        """
         super(FDV1MetaInfo, self).update(args)
         self.input_image_size = (args.input_size, args.input_size)
         self.resize_inv_factor = args.resize_inv_factor
@@ -187,6 +229,25 @@ def fdv1_train_transform(ds_metainfo,
                          mean_rgb=(0.485, 0.456, 0.406),
                          std_rgb=(0.229, 0.224, 0.225),
                          jitter_param=0.4):
+    """
+    Create image transform sequence for training subset.
+
+    Parameters:
+    ----------
+    ds_metainfo : DatasetMetaInfo
+        FDV1 dataset metainfo.
+    mean_rgb : tuple of 3 float
+        Mean of RGB channels in the dataset.
+    std_rgb : tuple of 3 float
+        STD of RGB channels in the dataset.
+    jitter_param : float
+        How much to jitter values.
+
+    Returns
+    -------
+    Compose
+        Image transform sequence.
+    """
     input_image_size = ds_metainfo.input_image_size
     resize_value = calc_val_resize_value(
         input_image_size=ds_metainfo.input_image_size,
@@ -212,6 +273,23 @@ def fdv1_train_transform(ds_metainfo,
 def fdv1_val_transform(ds_metainfo,
                        mean_rgb=(0.485, 0.456, 0.406),
                        std_rgb=(0.229, 0.224, 0.225)):
+    """
+    Create image transform sequence for validation subset.
+
+    Parameters:
+    ----------
+    ds_metainfo : DatasetMetaInfo
+        FDV1 dataset metainfo.
+    mean_rgb : tuple of 3 float
+        Mean of RGB channels in the dataset.
+    std_rgb : tuple of 3 float
+        STD of RGB channels in the dataset.
+
+    Returns
+    -------
+    Compose
+        Image transform sequence.
+    """
     input_image_size = ds_metainfo.input_image_size
     resize_value = calc_val_resize_value(
         input_image_size=ds_metainfo.input_image_size,
@@ -233,6 +311,21 @@ def fdv1_val_transform(ds_metainfo,
 
 def calc_val_resize_value(input_image_size=(224, 224),
                           resize_inv_factor=0.875):
+    """
+    Calculate image resize value for validation subset.
+
+    Parameters:
+    ----------
+    input_image_size : tuple of 2 int
+        Main script arguments.
+    resize_inv_factor : float
+        Resize inverted factor.
+
+    Returns
+    -------
+    int
+        Resize value.
+    """
     if isinstance(input_image_size, int):
         input_image_size = (input_image_size, input_image_size)
     resize_value = int(math.ceil(float(input_image_size[0]) / resize_inv_factor))
