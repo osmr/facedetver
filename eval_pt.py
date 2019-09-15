@@ -1,7 +1,12 @@
+"""
+    Script for evaluating trained model on PyTorch (validate/test).
+"""
+
 import os
 import time
 import logging
 import argparse
+from tqdm import tqdm
 from common.logger_utils import initialize_logging
 from pytorch.utils import prepare_pt_context, prepare_model
 from pytorch.utils import calc_net_weight_count, validate
@@ -10,6 +15,7 @@ from pytorch.utils import report_accuracy
 from pytorch.dataset_utils import get_dataset_metainfo
 from pytorch.dataset_utils import get_val_data_source, get_test_data_source
 from pytorch.model_stats import measure_model
+from pytorch.metrics.cls_metrics import StoreMisses
 
 
 def add_eval_cls_parser_arguments(parser):
@@ -97,9 +103,13 @@ def add_eval_cls_parser_arguments(parser):
         help="list of pip packages for logging")
 
     parser.add_argument(
-        "--show-progress",
+        "--not-show-progress",
         action="store_true",
-        help="show progress bar")
+        help="do not show progress bar")
+    parser.add_argument(
+        "--show-bad-samples",
+        action="store_true",
+        help="show file names for bad samples")
 
 
 def parse_args():
@@ -146,7 +156,8 @@ def test(net,
          calc_weight_count=False,
          calc_flops=False,
          calc_flops_only=True,
-         extended_log=False):
+         extended_log=False,
+         show_bad_samples=False):
     """
     Main test routine.
 
@@ -172,6 +183,8 @@ def test(net,
         Whether to only calculate FLOPs without testing.
     extended_log : bool, default False
         Whether to log more precise accuracy values.
+    show_bad_samples : bool, default False
+        Whether to log file names for bad samples.
     """
     if not calc_flops_only:
         tic = time.time()
@@ -201,6 +214,19 @@ def test(net,
             flops=num_flops, flops_m=num_flops / 1e6,
             flops2=num_flops / 2, flops2_m=num_flops / 2 / 1e6,
             macs=num_macs, macs_m=num_macs / 1e6))
+
+    if show_bad_samples:
+        store_misses = StoreMisses()
+        validate(
+            metric=store_misses,
+            net=net,
+            val_data=test_data,
+            use_cuda=use_cuda)
+        _, misses_list = store_misses.get()
+        if len(misses_list) > 0:
+            dataset = test_data.iterable.dataset if isinstance(test_data, tqdm) else test_data.dataset
+            for i, miss_ind in enumerate(misses_list):
+                logging.info("Miss [{}]: {}".format(i, dataset.get_file_name(miss_ind)))
 
 
 def main():
@@ -251,8 +277,7 @@ def main():
         batch_size=args.batch_size,
         num_workers=args.num_workers)
 
-    if args.show_progress:
-        from tqdm import tqdm
+    if not args.not_show_progress:
         test_data = tqdm(test_data)
 
     assert (args.use_pretrained or args.resume.strip() or args.calc_flops_only)
@@ -266,7 +291,8 @@ def main():
         calc_weight_count=True,
         calc_flops=args.calc_flops,
         calc_flops_only=args.calc_flops_only,
-        extended_log=True)
+        extended_log=True,
+        show_bad_samples=args.show_bad_samples)
 
 
 if __name__ == "__main__":

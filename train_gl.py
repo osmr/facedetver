@@ -1,3 +1,7 @@
+"""
+    Script for training model on MXNet/Gluon.
+"""
+
 import argparse
 import time
 import logging
@@ -501,7 +505,6 @@ def train_net(batch_size,
               val_metric,
               train_metric,
               ctx):
-
     if batch_size_scale != 1:
         for p in net.collect_params().values():
             p.grad_req = "add"

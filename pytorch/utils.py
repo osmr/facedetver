@@ -4,7 +4,7 @@ import numpy as np
 import torch.utils.data
 from pytorchcv.model_provider import get_model
 from .metrics.metric import EvalMetric, CompositeEvalMetric
-from .metrics.cls_metrics import Top1Error, TopKError
+from .metrics.cls_metrics import Top1Error, F1, MCC
 
 
 def prepare_pt_context(num_gpus,
@@ -75,45 +75,6 @@ def calc_net_weight_count(net):
     return weight_count
 
 
-class AverageMeter(object):
-    """
-    Computes and stores the average and current value
-    """
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.val = 0
-        self.avg = 0
-        self.sum = 0
-        self.count = 0
-
-    def update(self, val, n=1):
-        self.val = val
-        self.sum += val * n
-        self.count += n
-        self.avg = self.sum / self.count
-
-
-def accuracy(output, target, topk=(1,)):
-    """
-    Computes the precision@k for the specified values of k
-    """
-    with torch.no_grad():
-        maxk = max(topk)
-        batch_size = target.size(0)
-
-        _, pred = output.topk(maxk, 1, True, True)
-        pred = pred.t()
-        correct = pred.eq(target.view(1, -1).expand_as(pred))
-
-        res = []
-        for k in topk:
-            correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
-            res.append(correct_k.mul_(1.0 / batch_size))
-        return res
-
-
 def validate(metric,
              net,
              val_data,
@@ -127,23 +88,6 @@ def validate(metric,
             output = net(data)
             metric.update(target, output)
     return metric
-
-
-def validate1(accuracy_metric,
-              net,
-              val_data,
-              use_cuda):
-    net.eval()
-    accuracy_metric.reset()
-    with torch.no_grad():
-        for data, target in val_data:
-            if use_cuda:
-                target = target.cuda(non_blocking=True)
-            output = net(data)
-            accuracy_value = accuracy(output, target)
-            accuracy_metric.update(accuracy_value[0], data.size(0))
-    accuracy_value = accuracy_metric.avg.item()
-    return 1.0 - accuracy_value
 
 
 def report_accuracy(metric,
@@ -169,8 +113,10 @@ def report_accuracy(metric,
 def get_metric(metric_name, metric_extra_kwargs):
     if metric_name == "Top1Error":
         return Top1Error(**metric_extra_kwargs)
-    elif metric_name == "TopKError":
-        return TopKError(**metric_extra_kwargs)
+    elif metric_name == "F1":
+        return F1(**metric_extra_kwargs)
+    elif metric_name == "MCC":
+        return MCC(**metric_extra_kwargs)
     else:
         raise Exception("Wrong metric name: {}".format(metric_name))
 

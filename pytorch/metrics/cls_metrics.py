@@ -2,11 +2,12 @@
 Evaluation Metrics for Image Classification.
 """
 
+import math
 import numpy as np
 import torch
 from .metric import EvalMetric
 
-__all__ = ['Top1Error', 'TopKError']
+__all__ = ['Accuracy', 'Top1Error', 'F1', 'MCC', 'StoreMisses']
 
 
 class Accuracy(EvalMetric):
@@ -70,89 +71,6 @@ class Accuracy(EvalMetric):
             self.global_num_inst += len(pred_label)
 
 
-class TopKAccuracy(EvalMetric):
-    """
-    Computes top k predictions accuracy.
-
-    Parameters
-    ----------
-    top_k : int, default 1
-        Whether targets are in top k predictions.
-    name : str, default 'top_k_accuracy'
-        Name of this metric instance for display.
-    torch_like : bool, default True
-        Whether to use pytorch-like algorithm.
-    output_names : list of str, or None, default None
-        Name of predictions that should be used when updating with update_dict.
-        By default include all predictions.
-    label_names : list of str, or None, default None
-        Name of labels that should be used when updating with update_dict.
-        By default include all labels.
-    """
-    def __init__(self,
-                 top_k=1,
-                 name="top_k_accuracy",
-                 torch_like=True,
-                 output_names=None,
-                 label_names=None):
-        super(TopKAccuracy, self).__init__(
-            name,
-            top_k=top_k,
-            output_names=output_names,
-            label_names=label_names,
-            has_global_stats=True)
-        self.top_k = top_k
-        assert (self.top_k > 1), "Please use Accuracy if top_k is no more than 1"
-        self.name += "_{:d}".format(self.top_k)
-        self.torch_like = torch_like
-
-    def update(self, labels, preds):
-        """
-        Updates the internal evaluation result.
-
-        Parameters
-        ----------
-        labels : torch.Tensor
-            The labels of the data.
-        preds : torch.Tensor
-            Predicted values.
-        """
-        assert (len(labels) == len(preds))
-        with torch.no_grad():
-            if self.torch_like:
-                _, pred = preds.topk(k=self.top_k, dim=1, largest=True, sorted=True)
-                pred = pred.t()
-                correct = pred.eq(labels.view(1, -1).expand_as(pred))
-                num_correct = correct.view(-1).float().sum(dim=0, keepdim=True).item()
-                num_samples = labels.size(0)
-                assert (num_correct <= num_samples)
-                self.sum_metric += num_correct
-                self.global_sum_metric += num_correct
-                self.num_inst += num_samples
-                self.global_num_inst += num_samples
-            else:
-                assert(len(preds.shape) <= 2), "Predictions should be no more than 2 dims"
-                pred_label = preds.cpu().numpy().astype(np.int32)
-                pred_label = np.argpartition(pred_label, -self.top_k)
-                label = labels.cpu().numpy().astype(np.int32)
-                assert (len(label) == len(pred_label))
-                num_samples = pred_label.shape[0]
-                num_dims = len(pred_label.shape)
-                if num_dims == 1:
-                    num_correct = (pred_label.flat == label.flat).sum()
-                    self.sum_metric += num_correct
-                    self.global_sum_metric += num_correct
-                elif num_dims == 2:
-                    num_classes = pred_label.shape[1]
-                    top_k = min(num_classes, self.top_k)
-                    for j in range(top_k):
-                        num_correct = (pred_label[:, num_classes - 1 - j].flat == label.flat).sum()
-                        self.sum_metric += num_correct
-                        self.global_sum_metric += num_correct
-                self.num_inst += num_samples
-                self.global_num_inst += num_samples
-
-
 class Top1Error(Accuracy):
     """
     Computes top-1 error (inverted accuracy classification score).
@@ -198,18 +116,345 @@ class Top1Error(Accuracy):
             return self.name, 1.0 - self.sum_metric / self.num_inst
 
 
-class TopKError(TopKAccuracy):
+class _BinaryClassificationMetrics(object):
     """
-    Computes top-k error (inverted top k predictions accuracy).
+    Private container class for classification metric statistics. True/false positive and
+     true/false negative counts are sufficient statistics for various classification metrics.
+    This class provides the machinery to track those statistics across mini-batches of
+    (label, prediction) pairs.
+    """
+    def __init__(self):
+        self.true_positives = 0
+        self.false_negatives = 0
+        self.false_positives = 0
+        self.true_negatives = 0
+        self.global_true_positives = 0
+        self.global_false_negatives = 0
+        self.global_false_positives = 0
+        self.global_true_negatives = 0
+
+    def update_binary_stats(self, label, pred):
+        """
+        Update various binary classification counts for a single (label, pred)
+        pair.
+
+        Parameters
+        ----------
+        label : np.array
+            The labels of the data.
+        pred : np.array
+            Predicted values.
+        """
+        pred_label = pred
+
+        pred_true = (pred_label == 1)
+        pred_false = 1 - pred_true
+        label_true = (label == 1)
+        label_false = 1 - label_true
+
+        true_pos = (pred_true * label_true).sum()
+        false_pos = (pred_true * label_false).sum()
+        false_neg = (pred_false * label_true).sum()
+        true_neg = (pred_false * label_false).sum()
+        self.true_positives += true_pos
+        self.global_true_positives += true_pos
+        self.false_positives += false_pos
+        self.global_false_positives += false_pos
+        self.false_negatives += false_neg
+        self.global_false_negatives += false_neg
+        self.true_negatives += true_neg
+        self.global_true_negatives += true_neg
+
+    @property
+    def precision(self):
+        if self.true_positives + self.false_positives > 0:
+            return float(self.true_positives) / (self.true_positives + self.false_positives)
+        else:
+            return 0.0
+
+    @property
+    def global_precision(self):
+        if self.global_true_positives + self.global_false_positives > 0:
+            return float(self.global_true_positives) / (self.global_true_positives + self.global_false_positives)
+        else:
+            return 0.0
+
+    @property
+    def recall(self):
+        if self.true_positives + self.false_negatives > 0:
+            return float(self.true_positives) / (self.true_positives + self.false_negatives)
+        else:
+            return 0.0
+
+    @property
+    def global_recall(self):
+        if self.global_true_positives + self.global_false_negatives > 0:
+            return float(self.global_true_positives) / (self.global_true_positives + self.global_false_negatives)
+        else:
+            return 0.0
+
+    @property
+    def fscore(self):
+        if self.precision + self.recall > 0:
+            return 2 * self.precision * self.recall / (self.precision + self.recall)
+        else:
+            return 0.0
+
+    @property
+    def global_fscore(self):
+        if self.global_precision + self.global_recall > 0:
+            return 2 * self.global_precision * self.global_recall / (self.global_precision + self.global_recall)
+        else:
+            return 0.0
+
+    def matthewscc(self, use_global=False):
+        """
+        Calculate the Matthew's Correlation Coefficent.
+
+        Parameters
+        ----------
+        use_global : bool, default False
+            Whether to use global statistic values.
+        """
+        if use_global:
+            if not self.global_total_examples:
+                return 0.0
+
+            true_pos = float(self.global_true_positives)
+            false_pos = float(self.global_false_positives)
+            false_neg = float(self.global_false_negatives)
+            true_neg = float(self.global_true_negatives)
+        else:
+            if not self.total_examples:
+                return 0.0
+
+            true_pos = float(self.true_positives)
+            false_pos = float(self.false_positives)
+            false_neg = float(self.false_negatives)
+            true_neg = float(self.true_negatives)
+
+        terms = [(true_pos + false_pos),
+                 (true_pos + false_neg),
+                 (true_neg + false_pos),
+                 (true_neg + false_neg)]
+        denom = 1.
+        for t in filter(lambda t: t != 0.0, terms):
+            denom *= t
+        return ((true_pos * true_neg) - (false_pos * false_neg)) / math.sqrt(denom)
+
+    @property
+    def total_examples(self):
+        return self.false_negatives + self.false_positives + \
+               self.true_negatives + self.true_positives
+
+    @property
+    def global_total_examples(self):
+        return self.global_false_negatives + self.global_false_positives + \
+               self.global_true_negatives + self.global_true_positives
+
+    def local_reset_stats(self):
+        self.false_positives = 0
+        self.false_negatives = 0
+        self.true_positives = 0
+        self.true_negatives = 0
+
+    def reset_stats(self):
+        self.false_positives = 0
+        self.false_negatives = 0
+        self.true_positives = 0
+        self.true_negatives = 0
+        self.global_false_positives = 0
+        self.global_false_negatives = 0
+        self.global_true_positives = 0
+        self.global_true_negatives = 0
+
+
+class F1(EvalMetric):
+    """
+    Computes the F1 score of a binary classification problem.
 
     Parameters
     ----------
-    top_k : int
-        Whether targets are out of top k predictions, default 1
-    name : str, default 'top_k_error'
+    name : str, default 'f1'
         Name of this metric instance for display.
-    torch_like : bool, default True
-        Whether to use pytorch-like algorithm.
+    output_names : list of str, or None, default None
+        Name of predictions that should be used when updating with update_dict.
+        By default include all predictions.
+    label_names : list of str, or None, default None
+        Name of labels that should be used when updating with update_dict.
+        By default include all labels.
+    average : str, default 'macro'
+        Strategy to be used for aggregating across mini-batches.
+            "macro": average the F1 scores for each batch.
+            "micro": compute a single F1 score across all batches.
+    """
+    def __init__(self,
+                 name="f1",
+                 output_names=None,
+                 label_names=None,
+                 average="macro"):
+        self.average = average
+        self.metrics = _BinaryClassificationMetrics()
+        EvalMetric.__init__(
+            self,
+            name=name,
+            output_names=output_names,
+            label_names=label_names,
+            has_global_stats=True)
+        self.axis = 1
+
+    def update(self, labels, preds):
+        """
+        Updates the internal evaluation result.
+
+        Parameters
+        ----------
+        labels : torch.Tensor
+            The labels of the data.
+        preds : torch.Tensor
+            Predicted values.
+        """
+        with torch.no_grad():
+            if preds.shape != labels.shape:
+                pred = torch.argmax(preds, dim=self.axis)
+            else:
+                pred = preds
+            pred = pred.cpu().numpy().astype(np.int32)
+            label = labels.cpu().numpy().astype(np.int32)
+
+            assert (len(label) == len(pred))
+            self.metrics.update_binary_stats(label, pred)
+
+            if self.average == "macro":
+                self.sum_metric += self.metrics.fscore
+                self.global_sum_metric += self.metrics.global_fscore
+                self.num_inst += 1
+                self.global_num_inst += 1
+                self.metrics.reset_stats()
+            else:
+                self.sum_metric = self.metrics.fscore * self.metrics.total_examples
+                self.global_sum_metric = self.metrics.global_fscore * self.metrics.global_total_examples
+                self.num_inst = self.metrics.total_examples
+                self.global_num_inst = self.metrics.global_total_examples
+
+    def reset(self):
+        """
+        Resets the internal evaluation result to initial state.
+        """
+        self.sum_metric = 0.0
+        self.num_inst = 0
+        self.global_num_inst = 0
+        self.global_sum_metric = 0.0
+        self.metrics.reset_stats()
+
+    def reset_local(self):
+        """
+        Resets the internal evaluation result to initial state.
+        """
+        self.sum_metric = 0.0
+        self.num_inst = 0
+        self.metrics.local_reset_stats()
+
+
+class MCC(EvalMetric):
+    """
+    Computes the Matthews Correlation Coefficient of a binary classification problem.
+
+    Parameters
+    ----------
+    name : str, default 'mcc'
+        Name of this metric instance for display.
+    output_names : list of str, or None, default None
+        Name of predictions that should be used when updating with update_dict.
+        By default include all predictions.
+    label_names : list of str, or None, default None
+        Name of labels that should be used when updating with update_dict.
+        By default include all labels.
+    average : str, default 'macro'
+        Strategy to be used for aggregating across mini-batches.
+            "macro": average the MCC for each batch.
+            "micro": compute a single MCC across all batches.
+    """
+    def __init__(self,
+                 name="mcc",
+                 output_names=None,
+                 label_names=None,
+                 average="macro"):
+        self._average = average
+        self._metrics = _BinaryClassificationMetrics()
+        EvalMetric.__init__(
+            self,
+            name=name,
+            output_names=output_names,
+            label_names=label_names,
+            has_global_stats=True)
+        self.axis = 1
+
+    def update(self, labels, preds):
+        """
+        Updates the internal evaluation result.
+
+        Parameters
+        ----------
+        labels : torch.Tensor
+            The labels of the data.
+        preds : torch.Tensor
+            Predicted values.
+        """
+        assert (len(labels) == len(preds))
+        with torch.no_grad():
+            if preds.shape != labels.shape:
+                pred = torch.argmax(preds, dim=self.axis)
+            else:
+                pred = preds
+            pred = pred.cpu().numpy().astype(np.int32)
+            label = labels.cpu().numpy().astype(np.int32)
+
+            assert (len(label) == len(pred))
+            self._metrics.update_binary_stats(label, pred)
+
+            if self._average == "macro":
+                self.sum_metric += self._metrics.matthewscc()
+                self.global_sum_metric += self._metrics.matthewscc(use_global=True)
+                self.num_inst += 1
+                self.global_num_inst += 1
+                self._metrics.reset_stats()
+            else:
+                self.sum_metric = self._metrics.matthewscc() * self._metrics.total_examples
+                self.global_sum_metric = self._metrics.matthewscc(use_global=True) *\
+                                         self._metrics.global_total_examples
+                self.num_inst = self._metrics.total_examples
+                self.global_num_inst = self._metrics.global_total_examples
+
+    def reset(self):
+        """
+        Resets the internal evaluation result to initial state.
+        """
+        self.sum_metric = 0.0
+        self.num_inst = 0.0
+        self.global_sum_metric = 0.0
+        self.global_num_inst = 0.0
+        self._metrics.reset_stats()
+
+    def reset_local(self):
+        """
+        Resets the internal evaluation result to initial state.
+        """
+        self.sum_metric = 0.0
+        self.num_inst = 0.0
+        self._metrics.local_reset_stats()
+
+
+class StoreMisses(EvalMetric):
+    """
+    Fake metric, that computes indices of misses.
+
+    Parameters
+    ----------
+    axis : int, default 1
+        The axis that represents classes.
+    name : str, default 'store_errs'
+        Name of this metric instance for display.
     output_names : list of str, or None, default None
         Name of predictions that should be used when updating with update_dict.
         By default include all predictions.
@@ -218,19 +463,57 @@ class TopKError(TopKAccuracy):
         By default include all labels.
     """
     def __init__(self,
-                 top_k=1,
-                 name="top_k_error",
-                 torch_like=True,
+                 axis=1,
+                 name="store_errs",
                  output_names=None,
                  label_names=None):
-        name_ = name
-        super(TopKError, self).__init__(
-            top_k=top_k,
-            name=name,
-            torch_like=torch_like,
+        super(StoreMisses, self).__init__(
+            name,
+            axis=axis,
             output_names=output_names,
             label_names=label_names)
-        self.name = name_.replace("_k_", "_{}_".format(top_k))
+        self.axis = axis
+        self.ind_list = []
+        self.last_ind = 0
+
+    def update(self, labels, preds):
+        """
+        Updates the internal evaluation result.
+
+        Parameters
+        ----------
+        labels : torch.Tensor
+            The labels of the data.
+        preds : torch.Tensor
+            Predicted values.
+        """
+        assert (len(labels) == len(preds))
+        with torch.no_grad():
+            if preds.shape != labels.shape:
+                pred_label = torch.argmax(preds, dim=self.axis)
+            else:
+                pred_label = preds
+            pred_label = pred_label.cpu().numpy().astype(np.int32)
+            label = labels.cpu().numpy().astype(np.int32)
+
+            label = label.flat
+            pred_label = pred_label.flat
+
+            assert (len(label) == len(pred_label))
+            sample_count = len(label)
+            inds = np.arange(self.last_ind, self.last_ind + sample_count)
+            new_ind_list = inds[label != pred_label]
+            self.ind_list += list(new_ind_list)
+            self.last_ind += sample_count
+
+    def reset(self):
+        """
+        Resets the internal evaluation result to initial state.
+        """
+        self.num_inst = 0
+        self.sum_metric = 0.0
+        self.ind_list = []
+        self.last_ind = 0
 
     def get(self):
         """
@@ -240,10 +523,7 @@ class TopKError(TopKAccuracy):
         -------
         names : list of str
            Name of the metrics.
-        values : list of float
+        values : list of int
            Value of the evaluations.
         """
-        if self.num_inst == 0:
-            return self.name, float("nan")
-        else:
-            return self.name, 1.0 - self.sum_metric / self.num_inst
+        return self.name, self.ind_list

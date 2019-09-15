@@ -44,6 +44,9 @@ class FDV1(ImageFolderDataset):
         sample_weights /= sample_weights.sum()
         return sample_weights
 
+    def get_file_name(self, idx):
+        return self.items[idx][0]
+
 
 class FDV1MetaInfo(DatasetMetaInfo):
     def __init__(self):
@@ -65,9 +68,12 @@ class FDV1MetaInfo(DatasetMetaInfo):
         self.val_metric_capts = ["Val.Err"]
         self.val_metric_names = ["Top1Error"]
         self.val_metric_extra_kwargs = [{"name": "err"}]
-        self.test_metric_capts = ["Test.Err"]
-        self.test_metric_names = ["Top1Error"]
-        self.test_metric_extra_kwargs = [{"name": "err"}]
+        self.test_metric_capts = ["Test.Err", "Test.F1", "Test.MCC"]
+        self.test_metric_names = ["Top1Error", "F1", "MCC"]
+        self.test_metric_extra_kwargs = [
+            {"name": "err"},
+            {"name": "f1", "average": "micro"},
+            {"name": "mcc", "average": "micro"}]
         self.saver_acc_ind = 0
         self.train_transform = fdv1_train_transform
         self.val_transform = fdv1_val_transform

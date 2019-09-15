@@ -7,3 +7,4 @@ gluoncv2
 torch
 torchvision
 pytorchcv
+tqdm

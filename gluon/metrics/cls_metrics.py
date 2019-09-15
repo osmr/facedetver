@@ -2,9 +2,10 @@
 Evaluation Metrics for Image Classification.
 """
 
+import numpy as np
 import mxnet as mx
 
-__all__ = ['Top1Error', 'TopKError']
+__all__ = ['Top1Error', 'StoreMisses']
 
 
 class Top1Error(mx.metric.Accuracy):
@@ -52,15 +53,15 @@ class Top1Error(mx.metric.Accuracy):
             return self.name, 1.0 - self.sum_metric / self.num_inst
 
 
-class TopKError(mx.metric.TopKAccuracy):
+class StoreMisses(mx.metric.EvalMetric):
     """
-    Computes top-k error (inverted top k predictions accuracy).
+    Fake metric, that computes indices of misses.
 
     Parameters
     ----------
-    top_k : int
-        Whether targets are out of top k predictions, default 1
-    name : str, default 'top_k_error'
+    axis : int, default 1
+        The axis that represents classes.
+    name : str, default 'store_errs'
         Name of this metric instance for display.
     output_names : list of str, or None, default None
         Name of predictions that should be used when updating with update_dict.
@@ -70,17 +71,49 @@ class TopKError(mx.metric.TopKAccuracy):
         By default include all labels.
     """
     def __init__(self,
-                 top_k=1,
-                 name="top_k_error",
+                 axis=1,
+                 name="store_errs",
                  output_names=None,
                  label_names=None):
-        name_ = name
-        super(TopKError, self).__init__(
-            top_k=top_k,
-            name=name,
+        super(StoreMisses, self).__init__(
+            name,
+            axis=axis,
             output_names=output_names,
             label_names=label_names)
-        self.name = name_.replace("_k_", "_{}_".format(top_k))
+        self.axis = axis
+        self.ind_list = []
+        self.last_ind = 0
+
+    def update(self, labels, preds):
+        """
+        Updates the internal evaluation result.
+
+        Parameters
+        ----------
+        labels : list of `NDArray`
+            The labels of the data.
+        preds : list of `NDArray`
+            Predicted values.
+        """
+        assert (len(labels) == len(preds))
+        for label, pred in zip(labels, preds):
+            label_imask = label.asnumpy().astype(np.int32)
+            pred_imask = mx.nd.argmax(pred, axis=self.axis).asnumpy().astype(np.int32)
+            assert (len(label_imask) == len(pred_imask))
+            sample_count = len(label_imask)
+            inds = np.arange(self.last_ind, self.last_ind + sample_count)
+            new_ind_list = inds[label_imask != pred_imask]
+            self.ind_list += list(new_ind_list)
+            self.last_ind += sample_count
+
+    def reset(self):
+        """
+        Resets the internal evaluation result to initial state.
+        """
+        self.num_inst = 0
+        self.sum_metric = 0.0
+        self.ind_list = []
+        self.last_ind = 0
 
     def get(self):
         """
@@ -90,10 +123,7 @@ class TopKError(mx.metric.TopKAccuracy):
         -------
         names : list of str
            Name of the metrics.
-        values : list of float
+        values : list of int
            Value of the evaluations.
         """
-        if self.num_inst == 0:
-            return self.name, float("nan")
-        else:
-            return self.name, 1.0 - self.sum_metric / self.num_inst
+        return self.name, self.ind_list

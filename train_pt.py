@@ -1,3 +1,7 @@
+"""
+    Script for training model on PyTorch.
+"""
+
 import os
 import time
 import logging
