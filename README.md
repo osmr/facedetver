@@ -36,7 +36,7 @@ Recommended repository deployment protocol on the machine with CUDA 10.0 and cuD
     mkdir facedetver_data
     cd facedetver_data
     ```
-4.1. Download and extract dataset FDV1:
+5. Download and extract dataset FDV1:
     ```
     mkdir fdv1
     cd fdv1
@@ -47,7 +47,7 @@ Recommended repository deployment protocol on the machine with CUDA 10.0 and cuD
     unzip fdv1_train.zip
     unzip fdv1_val.zip
     ```
-4.2. Or download and extract dataset FDV2:
+6. Or download and extract dataset FDV2:
     ```
     mkdir fdv2
     cd fdv2
@@ -58,7 +58,7 @@ Recommended repository deployment protocol on the machine with CUDA 10.0 and cuD
     unzip fdv2_train.zip
     unzip fdv2_val.zip
     ```
-5. Download and extract a model:
+7. Download and extract a model:
     ```
     cd ..
     mkdir resnet18_fdv1-0014
@@ -66,7 +66,7 @@ Recommended repository deployment protocol on the machine with CUDA 10.0 and cuD
     wget https://github.com/osmr/facedetver/releases/download/v0.0.3/resnet18_fdv1-0014-a03f116e.params.zip
     unzip resnet18_fdv1-0014-a03f116e.params.zip
     ```
-6. Run a testing script:
+8. Run a testing script:
     ```
     cd ../../facedetver
     python3 eval_gl.py --num-gpus=1 --model=resnet18 --save-dir=../facedetver_data/resnet18_fdv1-0014/ --batch-size=100 -j=4 --resume=../facedetver_data/resnet18_fdv1-0014/resnet18_fdv1-0014-a03f116e.params --calc-flops --show-bad-samples --data-subset=test
