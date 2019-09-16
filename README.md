@@ -76,8 +76,8 @@ Recommended repository deployment protocol on the machine with CUDA 10.0 and cuD
 
 | Model | Dataset | Framework | Acc | F1 | MCC | Params | FLOPs/2 | Remarks |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| ResNet-18 | FDV1 | Gluon | 0.9976 | 0.9976 | 0.9952 | 11,177,538 | 1819.90M | Training ([log](https://github.com/osmr/facedetver/releases/download/v0.0.3/resnet18_fdv1-0014-a03f116e.params.log)) |
-| ResNet-18 | FDV1 | PyTorch | 0.9976 | 0.9976 | 0.9952 | 11,177,538 | 1819.90M | Training ([log](https://github.com/osmr/facedetver/releases/download/v0.0.3/resnet18_fdv1-0011-85475034.pth.log)) |
-| ResNet-18 | FDV2 | Gluon | 0.9971 | 0.9971 | 0.9942 | 11,177,538 | 1819.90M | Training ([log](https://github.com/osmr/facedetver/releases/download/v0.0.3/resnet18_fdv2-0011-391f0c7e.params.log)) |
-| ResNet-18 | FDV2 | PyTorch | 0.9971 | 0.9971 | 0.9942 | 11,177,538 | 1819.90M | Training ([log](https://github.com/osmr/facedetver/releases/download/v0.0.3/resnet18_fdv2-0009-e1a3e6f2.pth.log)) |
+| ResNet-18 | FDV1 | Gluon | 0.9976 | 0.9976 | 0.9952 | 11,177,538 | 1,819.90M | Training ([log](https://github.com/osmr/facedetver/releases/download/v0.0.3/resnet18_fdv1-0014-a03f116e.params.log)) |
+| ResNet-18 | FDV1 | PyTorch | 0.9976 | 0.9976 | 0.9952 | 11,177,538 | 1,819.90M | Training ([log](https://github.com/osmr/facedetver/releases/download/v0.0.3/resnet18_fdv1-0011-85475034.pth.log)) |
+| ResNet-18 | FDV2 | Gluon | 0.9971 | 0.9971 | 0.9942 | 11,177,538 | 1,819.90M | Training ([log](https://github.com/osmr/facedetver/releases/download/v0.0.3/resnet18_fdv2-0011-391f0c7e.params.log)) |
+| ResNet-18 | FDV2 | PyTorch | 0.9971 | 0.9971 | 0.9942 | 11,177,538 | 1,819.90M | Training ([log](https://github.com/osmr/facedetver/releases/download/v0.0.3/resnet18_fdv2-0009-e1a3e6f2.pth.log)) |
 
