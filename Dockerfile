@@ -13,16 +13,6 @@ RUN pip3 install --upgrade numpy opencv-python imgaug tqdm
 RUN pip3 install --upgrade mxnet-cu100 gluoncv2
 RUN pip3 install --upgrade torch torchvision pytorchcv
 
-RUN git clone https://github.com/osmr/facedetver.git
-
-WORKDIR /facedetver_data/fdv1
-RUN wget https://github.com/osmr/facedetver/releases/download/v0.0.1/fdv1_test.zip
-RUN unzip fdv1_test.zip
-
-WORKDIR /facedetver_data/resnet18_fdv1-0014
-RUN wget https://github.com/osmr/facedetver/releases/download/v0.0.3/resnet18_fdv1-0014-a03f116e.params.zip
-RUN unzip resnet18_fdv1-0014-a03f116e.params.zip
-
-WORKDIR /facedetver
-RUN python3 eval_gl.py --num-gpus=1 --model=resnet18 --save-dir=../facedetver_data/resnet18_fdv1-0014/ --batch-size=100 -j=4 --resume=../facedetver_data/resnet18_fdv1-0014/resnet18_fdv1-0014-a03f116e.params --calc-flops --show-bad-samples --data-subset=test
-ENTRYPOINT CMD tail -f /dev/null
+ADD bootstrap.sh /root/
+RUN chmod ugo+x /root/bootstrap.sh
+CMD /root/bootstrap.sh
