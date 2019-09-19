@@ -7,6 +7,7 @@ import time
 import logging
 import argparse
 from tqdm import tqdm
+import mxnet as mx
 from common.logger_utils import initialize_logging
 from gluon.utils import prepare_mx_context, prepare_model
 from gluon.utils import calc_net_weight_count, validate
@@ -112,6 +113,10 @@ def add_eval_parser_arguments(parser):
         "--show-bad-samples",
         action="store_true",
         help="show file names for bad samples")
+    parser.add_argument(
+        "--not-show-ext-stats",
+        action="store_true",
+        help="not show extended statistics")
 
 
 def parse_args():
@@ -162,7 +167,8 @@ def test(net,
          calc_flops=False,
          calc_flops_only=True,
          extended_log=False,
-         show_bad_samples=False):
+         show_bad_samples=False,
+         show_ext_stats=False):
     """
     Main test routine.
 
@@ -196,6 +202,8 @@ def test(net,
         Whether to log more precise accuracy values.
     show_bad_samples : bool, default False
         Whether to log file names for bad samples.
+    show_ext_stats : bool, default False
+        Whether to show extended statistics.
     """
     if not calc_flops_only:
         tic = time.time()
@@ -228,6 +236,18 @@ def test(net,
             flops=num_flops, flops_m=num_flops / 1e6,
             flops2=num_flops / 2, flops2_m=num_flops / 2 / 1e6,
             macs=num_macs, macs_m=num_macs / 1e6))
+
+    if show_ext_stats:
+        if (not calc_flops_only) and isinstance(metric, mx.metric.CompositeEvalMetric) and isinstance(
+                metric.metrics[1], mx.metric.F1):
+            bin_metric = metric.metrics[1].metrics
+            logging.info("global_total_examples: {}".format(bin_metric.global_total_examples))
+            logging.info("global_true_positives: {}".format(bin_metric.global_true_positives))
+            logging.info("global_true_negatives: {}".format(bin_metric.global_true_negatives))
+            logging.info("global_false_positives: {}".format(bin_metric.global_false_positives))
+            logging.info("global_false_negatives: {}".format(bin_metric.global_false_negatives))
+            logging.info("global_precision: {}".format(bin_metric.global_precision))
+            logging.info("global_recall: {}".format(bin_metric.global_recall))
 
     if show_bad_samples:
         store_misses = StoreMisses()
@@ -314,7 +334,8 @@ def main():
         calc_flops=args.calc_flops,
         calc_flops_only=args.calc_flops_only,
         extended_log=True,
-        show_bad_samples=args.show_bad_samples)
+        show_bad_samples=args.show_bad_samples,
+        show_ext_stats=(not args.not_show_ext_stats))
 
 
 if __name__ == "__main__":
